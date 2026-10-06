@@ -1,12 +1,10 @@
-import { CourseReview } from './components/CourseReview';
+import { ProfileEditor } from './components/ProfileEditor';
 
 export default function App() {
   return (
-    <main style={{ maxWidth: '600px', margin: '0 auto', padding: '20px', fontFamily: 'sans-serif' }}>
-      <h1>Відгуки про навчання</h1>
-      <section style={{ marginTop: '20px' }}>
-        <CourseReview />
-      </section>
+    <main style={{ padding: '40px 20px', fontFamily: 'sans-serif' }}>
+      <h1 style={{ textAlign: 'center', marginBottom: '30px' }}>Мій профіль</h1>
+      <ProfileEditor />
     </main>
   );
 }
