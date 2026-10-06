@@ -27,7 +27,6 @@ export function ProfileEditor() {
         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
       }}
     >
-      {/* Ліва колонка: Форма */}
       <div style={{ flex: 1 }}>
         <h3 style={{ marginTop: 0, marginBottom: '16px' }}>Редагувати профіль</h3>
         <form onSubmit={(e) => e.preventDefault()} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
