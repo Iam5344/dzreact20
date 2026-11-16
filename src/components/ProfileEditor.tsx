@@ -1,141 +1,263 @@
 import { useState } from 'react';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import Select from 'react-select';
 
-interface Profile {
-  name: string;
-  specialty: string;
-  isOnline: boolean;
+interface LanguageOption {
+  value: string;
+  label: string;
 }
 
+interface ProfileFormValues {
+  fullName: string;
+  email: string;
+  phones: { number: string }[];
+  languages: LanguageOption[];
+}
+
+const languageOptions: LanguageOption[] = [
+  { value: 'uk', label: 'Українська' },
+  { value: 'en', label: 'Англійська' },
+  { value: 'de', label: 'Німецька' },
+  { value: 'pl', label: 'Польська' },
+  { value: 'es', label: 'Іспанська' },
+];
+
 export function ProfileEditor() {
-  const [profile, setProfile] = useState<Profile>({
-    name: 'Глєб',
-    specialty: 'React Developer',
-    isOnline: true
+  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const {
+    register,
+    control,
+    handleSubmit,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm<ProfileFormValues>({
+    defaultValues: {
+      fullName: 'Глєб',
+      email: 'gleb@example.com',
+      phones: [{ number: '+380 99 123 45 67' }],
+      languages: [{ value: 'uk', label: 'Українська' }],
+    },
   });
+
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: 'phones',
+  });
+
+  const watchedValues = watch();
+
+  const onSubmit = async (data: ProfileFormValues) => {
+    setStatusMessage(null);
+
+    try {
+      const response = await fetch('http://localhost:5000/api/update-profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Помилка при оновленні профілю');
+      }
+
+      setStatusMessage({ type: 'success', text: result.message });
+    } catch (err) {
+      setStatusMessage({ type: 'error', text: (err as Error).message });
+    }
+  };
 
   return (
     <div
       style={{
         display: 'flex',
         gap: '32px',
-        maxWidth: '800px',
+        maxWidth: '850px',
         margin: '0 auto',
-        padding: '20px',
+        padding: '24px',
         border: '1px solid #e5e7eb',
         borderRadius: '12px',
         backgroundColor: '#ffffff',
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
       }}
     >
-      <div style={{ flex: 1 }}>
-        <h3 style={{ marginTop: 0, marginBottom: '16px' }}>Редагувати профіль</h3>
-        <form onSubmit={(e) => e.preventDefault()} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
-              Ім'я:
-            </label>
-            <input
-              type="text"
-              value={profile.name}
-              onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-              style={{
-                width: '100%',
-                padding: '8px',
-                borderRadius: '6px',
-                border: '1px solid #d1d5db',
-                boxSizing: 'border-box'
-              }}
-            />
-          </div>
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '14px' }}
+      >
+        <h3 style={{ margin: 0 }}>Редагування профілю</h3>
 
-          <div>
-            <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
-              Спеціальність:
-            </label>
-            <input
-              type="text"
-              value={profile.specialty}
-              onChange={(e) => setProfile({ ...profile, specialty: e.target.value })}
-              style={{
-                width: '100%',
-                padding: '8px',
-                borderRadius: '6px',
-                border: '1px solid #d1d5db',
-                boxSizing: 'border-box'
-              }}
-            />
+        {statusMessage && (
+          <div
+            style={{
+              padding: '10px',
+              borderRadius: '6px',
+              fontSize: '14px',
+              backgroundColor: statusMessage.type === 'success' ? '#dcfce7' : '#fee2e2',
+              color: statusMessage.type === 'success' ? '#166534' : '#991b1b',
+            }}
+          >
+            {statusMessage.text}
           </div>
+        )}
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
-            <input
-              type="checkbox"
-              id="isOnline"
-              checked={profile.isOnline}
-              onChange={(e) => setProfile({ ...profile, isOnline: e.target.checked })}
-              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-            />
-            <label htmlFor="isOnline" style={{ cursor: 'pointer', fontWeight: 'bold' }}>
-              Онлайн статус
-            </label>
-          </div>
-        </form>
-      </div>
+        <div>
+          <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
+            ПІБ студента:
+          </label>
+          <input
+            {...register('fullName', { required: "ПІБ є обов'язковим" })}
+            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db', boxSizing: 'border-box' }}
+          />
+          {errors.fullName && <span style={{ color: 'red', fontSize: '12px' }}>{errors.fullName.message}</span>}
+        </div>
 
-      {/* Права колонка: Прев'ю */}
+        <div>
+          <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
+            Електронна пошта:
+          </label>
+          <input
+            type="email"
+            {...register('email', {
+              required: "Email є обов'язковим",
+              pattern: { value: /^\S+@\S+$/i, message: 'Некоректний формат пошти' },
+            })}
+            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db', boxSizing: 'border-box' }}
+          />
+          {errors.email && <span style={{ color: 'red', fontSize: '12px' }}>{errors.email.message}</span>}
+        </div>
+
+        <div>
+          <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
+            Номери телефонів:
+          </label>
+          {fields.map((field, index) => (
+            <div key={field.id} style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+              <input
+                {...register(`phones.${index}.number` as const, { required: 'Введіть номер' })}
+                placeholder="+380..."
+                style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db' }}
+              />
+              {fields.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => remove(index)}
+                  style={{
+                    padding: '0 12px',
+                    backgroundColor: '#ef4444',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => append({ number: '' })}
+            style={{
+              padding: '6px 12px',
+              backgroundColor: '#f3f4f6',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '13px',
+            }}
+          >
+            + Додати ще номер
+          </button>
+        </div>
+
+    
+        <div>
+          <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
+            Володіння мовами:
+          </label>
+          <Controller
+            name="languages"
+            control={control}
+            render={({ field }) => (
+              <Select
+                {...field}
+                isMulti
+                options={languageOptions}
+                placeholder="Оберіть мови..."
+              />
+            )}
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          style={{
+            marginTop: '8px',
+            padding: '10px',
+            backgroundColor: isSubmitting ? '#93c5fd' : '#2563eb',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            fontWeight: 'bold',
+            cursor: isSubmitting ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {isSubmitting ? 'Збереження...' : 'Зберегти'}
+        </button>
+      </form>
+
+  
       <div
         style={{
           flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          justify: 'center',
-          alignItems: 'center',
-          backgroundColor: '#f9fafb',
-          border: '1px solid #f3f4f6',
-          borderRadius: '8px',
           padding: '20px',
-          position: 'relative'
+          backgroundColor: '#f9fafb',
+          borderRadius: '8px',
+          border: '1px solid #e5e7eb',
         }}
       >
-        <div style={{ position: 'relative', marginBottom: '12px' }}>
-          <div
-            style={{
-              width: '80px',
-              height: '80px',
-              borderRadius: '50%',
-              backgroundColor: '#3b82f6',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ffffff',
-              fontSize: '32px',
-              fontWeight: 'bold'
-            }}
-          >
-            {profile.name ? profile.name.charAt(0).toUpperCase() : '?'}
-          </div>
-          {profile.isOnline && (
-            <span
-              style={{
-                position: 'absolute',
-                bottom: '4px',
-                right: '4px',
-                width: '16px',
-                height: '16px',
-                backgroundColor: '#22c55e',
-                border: '2px solid #ffffff',
-                borderRadius: '50%'
-              }}
-              title="Online"
-            />
-          )}
+        <h3 style={{ marginTop: 0 }}>Картка студента</h3>
+        <p><strong>ПІБ:</strong> {watchedValues.fullName || '—'}</p>
+        <p><strong>Email:</strong> {watchedValues.email || '—'}</p>
+
+        <div>
+          <strong>Телефони:</strong>
+          <ul style={{ margin: '4px 0 12px 0', paddingLeft: '20px' }}>
+            {watchedValues.phones?.map((p, i) => (
+              <li key={i}>{p.number || 'Не вказано'}</li>
+            ))}
+          </ul>
         </div>
 
-        <h3 style={{ margin: '8px 0 4px 0', color: '#111827' }}>
-          {profile.name || 'Введіть ім\'я'}
-        </h3>
-        <p style={{ margin: 0, color: '#6b7280', fontSize: '14px' }}>
-          {profile.specialty || 'Введіть спеціальність'}
-        </p>
+        <div>
+          <strong>Мови:</strong>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
+            {watchedValues.languages?.length ? (
+              watchedValues.languages.map((lang) => (
+                <span
+                  key={lang.value}
+                  style={{
+                    padding: '4px 10px',
+                    backgroundColor: '#dbeafe',
+                    color: '#1e40af',
+                    borderRadius: '12px',
+                    fontSize: '13px',
+                  }}
+                >
+                  {lang.label}
+                </span>
+              ))
+            ) : (
+              <span>Не обрано</span>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
